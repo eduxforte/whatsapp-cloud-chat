@@ -121,8 +121,9 @@ app.post('/chatwoot/webhook', async (req, res) => {
   console.log('📦 Corpo recebido do Chatwoot:', JSON.stringify(req.body, null, 2));
 
   try {
-    const mensagem = req.body.content || req.body.processed_message_content || '';
-    const numero = req.body.meta?.sender?.phone_number || '';
+    const mensagem = req.body.messages?.[0]?.content || '';
+    const numero = req.body.meta?.sender?.phone_number?.replace(/\D/g, '') || '';
+
 
     console.log('📩 Mensagem recebida do Chatwoot:', mensagem);
     console.log('📱 Enviando para número:', numero);
