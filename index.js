@@ -13,6 +13,7 @@ const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 // Armazena mensagens em memória
 const mensagens = {};
 
+// Webhook de entrada de mensagens do WhatsApp
 app.post('/webhook', (req, res) => {
   const entry = req.body.entry?.[0];
   const change = entry?.changes?.[0];
@@ -33,16 +34,27 @@ app.post('/webhook', (req, res) => {
       timestamp
     });
 
-    console.log(`Mensagem recebida de ${from}: ${text}`);
+    console.log(`📩 Mensagem recebida de ${from}: ${text}`);
+
+    // ✅ Enviar para o webhook do Make
+    axios.post('https://hook.us2.make.com/fsk7p1m16g46tzt7mpi8kbmlhbucy93y', {
+      numero: from.startsWith('+') ? from : `+${from}`,
+      mensagem: text,
+      origem: 'cliente'
+    })
+    .then(() => console.log('✅ Mensagem enviada ao Make com sucesso'))
+    .catch((err) => console.error('❌ Erro ao enviar para Make:', err.response?.data || err.message));
   }
 
   res.sendStatus(200);
 });
 
+// Retorna o histórico de mensagens (para o painel)
 app.get('/messages', (req, res) => {
   res.json(mensagens);
 });
 
+// Envio de mensagens via API
 app.post('/send', async (req, res) => {
   const { to, text } = req.body;
 
@@ -68,6 +80,7 @@ app.post('/send', async (req, res) => {
     if (!mensagens[to]) {
       mensagens[to] = [];
     }
+
     mensagens[to].push({
       from: 'você',
       msg: text,
@@ -76,16 +89,18 @@ app.post('/send', async (req, res) => {
 
     res.sendStatus(200);
   } catch (error) {
-    console.error('Erro ao enviar mensagem:', error.response?.data || error.message);
+    console.error('❌ Erro ao enviar mensagem:', error.response?.data || error.message);
     res.status(500).json({ error: error.response?.data || error.message });
   }
 });
 
+// Página inicial
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
 });
 
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log('Servidor rodando na porta', PORT);
+  console.log('🚀 Servidor rodando na porta', PORT);
 });
