@@ -2,6 +2,9 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const path = require('path');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -9,7 +12,6 @@ const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Armazena mensagens recebidas e enviadas
 let mensagens = {};
 
 function salvarMensagem(numero, from, msg, timestamp = Date.now()) {
@@ -17,18 +19,18 @@ function salvarMensagem(numero, from, msg, timestamp = Date.now()) {
   mensagens[numero].push({ from, msg, timestamp });
 }
 
-// Endpoint GET para carregar mensagens no painel
+// Lista todas as mensagens no painel
 app.get('/messages', (req, res) => {
   res.json(mensagens);
 });
 
-// Endpoint POST para enviar mensagens
+// Envia mensagem para número específico
 app.post('/send', async (req, res) => {
   const { to, text } = req.body;
 
   try {
-    const token = 'SEU_TOKEN_DO_FACEBOOK'; // substitua aqui
-    const phoneNumberId = 'SEU_PHONE_NUMBER_ID'; // substitua aqui
+    const token = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
     const response = await axios.post(
       `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
@@ -54,7 +56,7 @@ app.post('/send', async (req, res) => {
   }
 });
 
-// Endpoint de webhook (para receber mensagens do WhatsApp)
+// Recebe mensagens do WhatsApp (webhook)
 app.post('/webhook', (req, res) => {
   const entry = req.body.entry?.[0];
   const changes = entry?.changes?.[0];
@@ -74,9 +76,9 @@ app.post('/webhook', (req, res) => {
   res.sendStatus(200);
 });
 
-// Verificação do webhook (obrigatória pelo Facebook)
+// Verificação do webhook
 app.get('/webhook', (req, res) => {
-  const VERIFY_TOKEN = 'meu_token_secreto'; // use o mesmo token que configurou no webhook
+  const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'meu_token_secreto';
 
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -91,5 +93,5 @@ app.get('/webhook', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+  console.log(`Servidor rodando na porta ${port}`);
 });
