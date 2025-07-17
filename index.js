@@ -118,44 +118,49 @@ app.get('/webhook', (req, res) => {
 
 // ✅ Nova rota: Recebe mensagens do Chatwoot e envia pelo WhatsApp
 app.post('/chatwoot/webhook', async (req, res) => {
-  const payload = req.body;
+  console.log('📦 Corpo recebido do Chatwoot:', JSON.stringify(req.body, null, 2));
 
-  const message = payload?.content;
-  const numero = payload?.inbox?.custom_attributes?.phone;
+  const { content, contact, conversation } = req.body;
 
-  if (!message || !numero) {
-    console.log('⚠️ Mensagem ou número ausente:', { message, numero });
-    return res.status(400).send('Faltando número ou conteúdo');
+  const mensagem = content?.text || content?.message || '';
+  let numero = contact?.identifier || contact?.phone_number || contact?.additional_attributes?.phone_number || '';
+
+  // Remove espaços, "+" e outros caracteres não numéricos
+  numero = numero.replace(/\D/g, '');
+
+  console.log('📩 Mensagem recebida do Chatwoot:', mensagem);
+  console.log('📱 Enviando para número:', numero);
+
+  if (!numero || !mensagem) {
+    console.warn('⚠️ Mensagem ou número ausente:', { mensagem, numero });
+    return res.status(400).send('Dados incompletos.');
   }
 
   try {
-    const token = process.env.WHATSAPP_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-    const response = await axios.post(
-      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+    await axios.post(
+      'https://graph.facebook.com/v19.0/713151888548596/messages',
       {
-        messaging_product: 'whatsapp',
+        messaging_product: "whatsapp",
         to: numero,
-        type: 'text',
-        text: { body: message }
+        type: "text",
+        text: { body: mensagem }
       },
       {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
           'Content-Type': 'application/json'
         }
       }
     );
 
-    console.log('✅ Mensagem enviada via WhatsApp pelo Chatwoot:', response.data);
-    salvarMensagem(numero, 'Você (Chatwoot)', message);
+    console.log('✅ Mensagem enviada via WhatsApp');
     res.sendStatus(200);
-  } catch (err) {
-    console.error('Erro ao enviar mensagem via WhatsApp:', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data || err.message });
+  } catch (error) {
+    console.error('❌ Erro ao responder no WhatsApp:', error.response?.data || error.message);
+    res.status(500).send('Erro ao enviar mensagem');
   }
 });
+
 
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
