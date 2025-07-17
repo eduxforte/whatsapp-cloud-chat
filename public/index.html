@@ -5,68 +5,79 @@
   <title>Painel WhatsApp Cloud</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
-    #contatos button { margin: 5px; padding: 10px; }
-    #conversa { border: 1px solid #ccc; padding: 10px; min-height: 200px; max-height: 400px; overflow-y: auto; }
-    input, button { margin-top: 10px; padding: 8px; font-size: 1rem; }
-    #destinatario, #mensagem { width: 300px; }
+    #contatos button { display: block; margin-bottom: 5px; width: 100%; }
+    #conversa { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
+    #input-area { display: flex; gap: 10px; }
+    #destinatario, #mensagem { flex: 1; padding: 8px; font-size: 1rem; }
   </style>
 </head>
 <body>
   <h1>Painel WhatsApp Cloud</h1>
-
   <div id="contatos"></div>
-  <div id="conversa"></div>
+  <div id="conversa">Selecione um contato para ver a conversa</div>
 
-  <input type="text" id="destinatario" placeholder="Número do cliente" />
-  <br/>
-  <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
-  <br/>
-  <button onclick="enviarMensagem()">Enviar</button>
+  <div id="input-area">
+    <input type="text" id="destinatario" placeholder="Número do cliente" readonly />
+    <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
+    <button onclick="enviarMensagem()">Enviar</button>
+  </div>
 
   <script>
+    let mensagensGlobais = {};
+
     async function carregarMensagens() {
       const res = await fetch('/messages');
       const data = await res.json();
+      mensagensGlobais = data;
+
       const contatosDiv = document.getElementById('contatos');
       contatosDiv.innerHTML = '';
 
       Object.keys(data).forEach(numero => {
         const btn = document.createElement('button');
-        btn.innerText = numero;
-        btn.onclick = () => exibirConversa(numero, data[numero]);
+        btn.textContent = numero;
+        btn.onclick = () => exibirConversa(numero);
         contatosDiv.appendChild(btn);
       });
     }
 
-    function exibirConversa(numero, mensagens) {
-      const div = document.getElementById('conversa');
-      div.innerHTML = `<h3>Conversando com ${numero}</h3>`;
-      mensagens.forEach(m => {
+    function exibirConversa(numero) {
+      const divConversa = document.getElementById('conversa');
+      divConversa.innerHTML = `<h3>Conversa com ${numero}</h3>`;
+
+      const mensagens = mensagensGlobais[numero] || [];
+      mensagens.forEach(msg => {
         const p = document.createElement('p');
-        p.innerText = `${m.from}: ${m.msg}`;
-        div.appendChild(p);
+        const hora = new Date(msg.timestamp).toLocaleTimeString();
+        p.textContent = `[${hora}] ${msg.from === numero ? 'Cliente' : 'Você'}: ${msg.msg}`;
+        divConversa.appendChild(p);
       });
+
       document.getElementById('destinatario').value = numero;
+      document.getElementById('mensagem').focus();
     }
 
     async function enviarMensagem() {
       const to = document.getElementById('destinatario').value;
-      const text = document.getElementById('mensagem').value;
-      if(!to || !text) {
-        alert('Preencha destinatário e mensagem!');
+      const text = document.getElementById('mensagem').value.trim();
+
+      if (!to || !text) {
+        alert('Escolha um contato e digite a mensagem!');
         return;
       }
-      try {
-        await fetch('/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to, text })
-        });
+
+      const res = await fetch('/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, text })
+      });
+
+      if (res.ok) {
         document.getElementById('mensagem').value = '';
-        carregarMensagens();
-      } catch(err) {
-        alert('Erro ao enviar mensagem');
-        console.error(err);
+        await carregarMensagens();
+        exibirConversa(to);
+      } else {
+        alert('Erro ao enviar mensagem.');
       }
     }
 
