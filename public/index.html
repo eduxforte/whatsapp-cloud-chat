@@ -5,111 +5,30 @@
     <title>Painel WhatsApp Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body class="bg-gray-100 h-screen flex">
-    <!-- Coluna Lateral -->
-    <div id="contatos" class="w-1/3 bg-white p-4 overflow-y-auto border-r border-gray-300">
-      <h2 class="text-xl font-bold mb-4">Conversas</h2>
-      <!-- Botões de contatos serão inseridos aqui pelo JavaScript -->
+  <body class="bg-gray-100 p-4">
+  <h1 class="text-2xl font-bold mb-4">Painel WhatsApp Cloud</h1>
+
+  <div class="flex border rounded-lg overflow-hidden shadow-lg h-[600px]">
+    <!-- Coluna de Contatos -->
+    <div id="contatos" class="w-1/3 bg-white overflow-y-auto border-r p-2">
+      <!-- contatos com botão e notificação serão inseridos aqui -->
     </div>
 
-    <!-- Coluna Principal -->
-    <div class="flex-1 flex flex-col">
-      <div id="conversa" class="flex-1 p-4 overflow-y-auto bg-gray-50">
-        <p class="text-gray-500">Selecione um contato para ver a conversa</p>
+    <!-- Coluna da Conversa -->
+    <div class="w-2/3 flex flex-col bg-white">
+      <div id="conversa" class="flex-1 p-4 overflow-y-auto border-b">
+        Selecione um contato para ver a conversa
       </div>
 
-      <div class="flex p-4 border-t border-gray-300 gap-2 bg-white">
-        <input
-          type="text"
-          id="destinatario"
-          class="flex-1 px-4 py-2 border border-gray-300 rounded"
-          placeholder="Número do cliente"
-        />
-        <input
-          type="text"
-          id="mensagem"
-          class="flex-[2] px-4 py-2 border border-gray-300 rounded"
-          placeholder="Digite sua mensagem"
-        />
-        <button
-          onclick="enviarMensagem()"
-          class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
+      <!-- Input para mensagens -->
+      <div class="p-4 flex gap-2">
+        <input type="text" id="destinatario" class="border rounded px-3 py-2 w-1/3" placeholder="Número do cliente" />
+        <input type="text" id="mensagem" class="border rounded px-3 py-2 flex-1" placeholder="Digite sua mensagem" />
+        <button onclick="enviarMensagem()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
           Enviar
         </button>
       </div>
     </div>
-
-    <script>
-      let mensagensGlobais = {};
-
-      async function carregarMensagens() {
-        const res = await fetch('/messages');
-        const data = await res.json();
-        mensagensGlobais = data;
-
-        const contatosDiv = document.getElementById('contatos');
-        contatosDiv.innerHTML = '<h2 class="text-xl font-bold mb-4">Conversas</h2>';
-
-        Object.keys(data).forEach(numero => {
-          const btn = document.createElement('button');
-          btn.textContent = numero;
-          btn.className =
-            'w-full text-left p-2 hover:bg-gray-200 rounded text-sm border-b border-gray-100';
-          btn.onclick = () => exibirConversa(numero);
-          contatosDiv.appendChild(btn);
-        });
-      }
-
-      function exibirConversa(numero) {
-        const divConversa = document.getElementById('conversa');
-        divConversa.innerHTML = `<h3 class="font-bold mb-2">Conversa com ${numero}</h3>`;
-
-        const mensagens = mensagensGlobais[numero] || [];
-        mensagens.forEach(msg => {
-          const hora = new Date(msg.timestamp).toLocaleTimeString();
-          const autor = msg.from === numero ? 'Cliente' : 'Você';
-          const p = document.createElement('p');
-          p.innerHTML = `<span class="text-gray-500 text-xs">[${hora}]</span> <strong>${autor}:</strong> ${msg.msg}`;
-          divConversa.appendChild(p);
-        });
-
-        document.getElementById('destinatario').value = numero;
-      }
-
-      async function enviarMensagem() {
-        const to = document.getElementById('destinatario').value.trim();
-        const text = document.getElementById('mensagem').value.trim();
-
-        if (!to || !text) {
-          alert('Escolha um contato e digite a mensagem!');
-          return;
-        }
-
-        const res = await fetch('/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to, text })
-        });
-
-        if (res.ok) {
-          document.getElementById('mensagem').value = '';
-          await carregarMensagens();
-          exibirConversa(to);
-        } else {
-          alert('Erro ao enviar mensagem.');
-        }
-      }
-
-      window.onload = () => {
-        carregarMensagens();
-        setInterval(() => {
-          const atual = document.getElementById('destinatario').value.trim();
-          carregarMensagens().then(() => {
-            if (atual) exibirConversa(atual);
-          });
-        }, 2000);
-      };
-    </script>
-  </body>
+  </div>
+</body>
 </html>
