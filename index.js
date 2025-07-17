@@ -1,98 +1,39 @@
-require('dotenv').config();
 const express = require('express');
-const fs = require('fs');
+const bodyParser = require('body-parser');
+const axios = require('axios');
 const path = require('path');
-console.log('Iniciando o servidor...');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(bodyParser.json());
 app.use(express.static('public'));
 
-const messagesFile = path.join(__dirname, 'messages.json');
+let mensagens = {};
 
-let memoryMessages = {};
-
-// Carrega mensagens do arquivo, ou retorna mensagens em memória se erro
-function loadMessages() {
-  try {
-    if (fs.existsSync(messagesFile)) {
-      const data = fs.readFileSync(messagesFile, 'utf-8');
-      return data ? JSON.parse(data) : {};
-    }
-  } catch (err) {
-    console.error('⚠️ Não foi possível ler messages.json, usando memória:', err.message);
-  }
-  return memoryMessages;
+function salvarMensagem(numero, from, msg, timestamp = Date.now()) {
+  if (!mensagens[numero]) mensagens[numero] = [];
+  mensagens[numero].push({ from, msg, timestamp });
 }
 
-// Salva mensagens no arquivo, ou guarda na memória se erro
-function saveMessages(messages) {
-  try {
-    fs.writeFileSync(messagesFile, JSON.stringify(messages, null, 2));
-    memoryMessages = messages; // atualiza a memória também
-  } catch (err) {
-    console.error('⚠️ Não foi possível salvar messages.json, mensagens ficarão na memória:', err.message);
-    memoryMessages = messages;
-  }
-}
-
-app.get('/webhook', (req, res) => {
-  const verify_token = 'meuverificawhatsapp';
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
-
-  if (mode === 'subscribe' && token === verify_token) {
-    console.log('✅ Webhook verificado com sucesso');
-    return res.status(200).send(challenge);
-  }
-  res.sendStatus(403);
-});
-
-app.post('/webhook', (req, res) => {
-  try {
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const message = changes?.value?.messages?.[0];
-
-    if (message) {
-      const from = message.from;
-      const text = message.text?.body || '';
-
-      const allMessages = loadMessages();
-
-      if (!allMessages[from]) allMessages[from] = [];
-
-      allMessages[from].push({ from, msg: text, timestamp: Date.now() });
-
-      saveMessages(allMessages);
-    }
-
-    res.sendStatus(200);
-  } catch (err) {
-    console.error('❌ Erro no webhook:', err);
-    res.sendStatus(500);
-  }
-});
-
+// Lista todas as mensagens no painel
 app.get('/messages', (req, res) => {
-  const messages = loadMessages();
-  res.json(messages);
+  res.json(mensagens);
 });
 
+// Envia mensagem para número específico
 app.post('/send', async (req, res) => {
-  const axios = require('axios');
   const { to, text } = req.body;
 
-  if (!to || !text) {
-    return res.status(400).json({ error: 'Parâmetros "to" e "text" são obrigatórios.' });
-  }
-
   try {
+    const token = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
     const response = await axios.post(
-      `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
         to,
@@ -101,18 +42,56 @@ app.post('/send', async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       }
     );
-    res.json(response.data);
-  } catch (error) {
-    console.error('❌ Erro ao enviar mensagem:', error.response?.data || error.message);
-    res.status(500).json({ error: error.response?.data || error.message });
+
+    salvarMensagem(to, 'Você', text);
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error('Erro ao enviar mensagem:', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data || err.message });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+// Recebe mensagens do WhatsApp (webhook)
+app.post('/webhook', (req, res) => {
+  const entry = req.body.entry?.[0];
+  const changes = entry?.changes?.[0];
+  const message = changes?.value?.messages?.[0];
+  const contact = changes?.value?.contacts?.[0];
+
+  if (message && contact) {
+    const numero = contact.wa_id;
+    const texto = message.text?.body;
+
+    if (texto) {
+      salvarMensagem(numero, 'Cliente', texto, Number(message.timestamp) * 1000);
+      console.log(`Mensagem recebida de ${numero}: ${texto}`);
+    }
+  }
+
+  res.sendStatus(200);
+});
+
+// Verificação do webhook
+app.get('/webhook', (req, res) => {
+  const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'meuverificawhatsapp';
+
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('WEBHOOK VERIFICADO');
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Servidor rodando na porta ${port}`);
 });
