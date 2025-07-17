@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>WEB PROVEDORA DE CRÉDITO</title>
+  <title>WEG PROVEDORA DE CRÉDITO</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-4">
@@ -11,7 +11,7 @@
   <div class="flex border rounded-lg overflow-hidden shadow-lg h-[600px]">
     <!-- Coluna de Contatos -->
     <div id="contatos" class="w-1/3 bg-white overflow-y-auto border-r p-2">
-      <!-- contatos com botão e notificação serão inseridos aqui -->
+      Carregando contatos...
     </div>
 
     <!-- Coluna da Conversa -->
@@ -32,41 +32,37 @@
   </div>
 
   <script>
-    let mensagensFake = {
-      "+5511999999999": [
-        { from: "+5511999999999", text: "Olá!" },
-        { from: "atendente", text: "Oi, tudo bem?" }
-      ],
-      "+5511888888888": [
-        { from: "+5511888888888", text: "Quero saber mais!" }
-      ]
-    };
+    let interacoes = {}; // dados recebidos da planilha
+    let contatos = [];
 
-    function carregarMensagens(data) {
+    async function carregarDados() {
+      try {
+        const resposta = await fetch("https://hook.us2.make.com/fsk7p1m16g46tzt7mpi8kbmlhbucy93y"); // <- endpoint Make
+        const data = await resposta.json();
+
+        // Supondo que o formato seja [{numero: "+55...", mensagem: "texto", origem: "cliente" ou "atendente", ...}]
+        interacoes = {};
+        data.forEach(msg => {
+          if (!interacoes[msg.numero]) interacoes[msg.numero] = [];
+          interacoes[msg.numero].push({ from: msg.origem, text: msg.mensagem });
+        });
+
+        contatos = Object.keys(interacoes);
+        listarContatos();
+      } catch (erro) {
+        document.getElementById("contatos").innerHTML = "<p class='text-red-500'>Erro ao carregar dados.</p>";
+        console.error("Erro ao carregar dados:", erro);
+      }
+    }
+
+    function listarContatos() {
       const contatosDiv = document.getElementById('contatos');
       contatosDiv.innerHTML = '';
 
-      Object.keys(data).forEach(numero => {
+      contatos.forEach(numero => {
         const btn = document.createElement('button');
-        btn.className = "w-full text-left px-4 py-2 hover:bg-gray-100 flex justify-between items-center";
-
-        const spanNumero = document.createElement('span');
-        spanNumero.textContent = numero;
-
-        const temMensagens = data[numero] || [];
-        const ultimaMensagem = temMensagens[temMensagens.length - 1];
-        const contatoSelecionado = document.getElementById('destinatario').value;
-        const naoLidas = ultimaMensagem && ultimaMensagem.from === numero && numero !== contatoSelecionado;
-
-        if (naoLidas) {
-          const bolinha = document.createElement('span');
-          bolinha.className = "bg-red-500 rounded-full w-3 h-3 ml-2";
-          btn.appendChild(spanNumero);
-          btn.appendChild(bolinha);
-        } else {
-          btn.appendChild(spanNumero);
-        }
-
+        btn.className = "w-full text-left px-4 py-2 hover:bg-gray-100";
+        btn.textContent = numero;
         btn.onclick = () => exibirConversa(numero);
         contatosDiv.appendChild(btn);
       });
@@ -74,20 +70,18 @@
 
     function exibirConversa(numero) {
       const conversaDiv = document.getElementById('conversa');
-      const mensagens = mensagensFake[numero] || [];
+      const mensagens = interacoes[numero] || [];
       document.getElementById('destinatario').value = numero;
 
       conversaDiv.innerHTML = '';
       mensagens.forEach(m => {
         const msg = document.createElement('div');
         msg.textContent = m.text;
-        msg.className = m.from === numero
+        msg.className = m.from === "cliente"
           ? 'text-left bg-gray-200 p-2 rounded mb-2 max-w-[80%]'
           : 'text-right bg-green-100 p-2 rounded mb-2 ml-auto max-w-[80%]';
         conversaDiv.appendChild(msg);
       });
-
-      carregarMensagens(mensagensFake); // Remove notificação
     }
 
     function enviarMensagem() {
@@ -99,22 +93,15 @@
         return;
       }
 
-      if (!mensagensFake[numero]) mensagensFake[numero] = [];
+      // Apenas adiciona localmente por enquanto (simulação)
+      if (!interacoes[numero]) interacoes[numero] = [];
+      interacoes[numero].push({ from: "atendente", text: texto });
 
-      mensagensFake[numero].push({ from: "atendente", text: texto });
       document.getElementById('mensagem').value = '';
-
-      // (Simulação) Resposta automática do cliente após 1s
-      setTimeout(() => {
-        mensagensFake[numero].push({ from: numero, text: "Recebido! Obrigado." });
-        carregarMensagens(mensagensFake);
-      }, 1000);
-
-      exibirConversa(numero); // Atualiza conversa
+      exibirConversa(numero);
     }
 
-    // Carregar ao iniciar
-    carregarMensagens(mensagensFake);
+    carregarDados();
   </script>
 </body>
 </html>
