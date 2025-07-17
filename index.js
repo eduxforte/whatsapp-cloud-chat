@@ -1,87 +1,91 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>Painel WhatsApp Cloud</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #contatos button { display: block; margin-bottom: 5px; width: 100%; }
-    #conversa { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
-    #input-area { display: flex; gap: 10px; }
-    #destinatario, #mensagem { flex: 1; padding: 8px; font-size: 1rem; }
-  </style>
-</head>
-<body>
-  <h1>Painel WhatsApp Cloud</h1>
-  <div id="contatos"></div>
-  <div id="conversa">Selecione um contato para ver a conversa</div>
+const express = require('express');
+const bodyParser = require('body-parser');
+const axios = require('axios');
+require('dotenv').config();
 
-  <div id="input-area">
-    <input type="text" id="destinatario" placeholder="Número do cliente" readonly />
-    <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
-    <button onclick="enviarMensagem()">Enviar</button>
-  </div>
+const app = express();
+app.use(bodyParser.json());
+app.use(express.static('public'));
 
-  <script>
-    let mensagensGlobais = {};
+const token = process.env.WHATSAPP_TOKEN;
+const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-    async function carregarMensagens() {
-      const res = await fetch('/messages');
-      const data = await res.json();
-      mensagensGlobais = data;
+// Armazena mensagens em memória
+const mensagens = {};
 
-      const contatosDiv = document.getElementById('contatos');
-      contatosDiv.innerHTML = '';
+app.post('/webhook', (req, res) => {
+  const entry = req.body.entry?.[0];
+  const change = entry?.changes?.[0];
+  const msg = change?.value?.messages?.[0];
 
-      Object.keys(data).forEach(numero => {
-        const btn = document.createElement('button');
-        btn.textContent = numero;
-        btn.onclick = () => exibirConversa(numero);
-        contatosDiv.appendChild(btn);
-      });
+  if (msg && msg.from && msg.text?.body) {
+    const from = msg.from;
+    const text = msg.text.body;
+    const timestamp = new Date().toISOString();
+
+    if (!mensagens[from]) {
+      mensagens[from] = [];
     }
 
-    function exibirConversa(numero) {
-      const divConversa = document.getElementById('conversa');
-      divConversa.innerHTML = `<h3>Conversa com ${numero}</h3>`;
+    mensagens[from].push({
+      from: 'cliente',
+      msg: text,
+      timestamp
+    });
 
-      const mensagens = mensagensGlobais[numero] || [];
-      mensagens.forEach(msg => {
-        const p = document.createElement('p');
-        const hora = new Date(msg.timestamp).toLocaleTimeString();
-        p.textContent = `[${hora}] ${msg.from === numero ? 'Cliente' : 'Você'}: ${msg.msg}`;
-        divConversa.appendChild(p);
-      });
+    console.log(`Mensagem recebida de ${from}: ${text}`);
+  }
 
-      document.getElementById('destinatario').value = numero;
-      document.getElementById('mensagem').focus();
-    }
+  res.sendStatus(200);
+});
 
-    async function enviarMensagem() {
-      const to = document.getElementById('destinatario').value;
-      const text = document.getElementById('mensagem').value.trim();
+app.get('/messages', (req, res) => {
+  res.json(mensagens);
+});
 
-      if (!to || !text) {
-        alert('Escolha um contato e digite a mensagem!');
-        return;
+app.post('/send', async (req, res) => {
+  const { to, text } = req.body;
+
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { body: text }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       }
+    );
 
-      const res = await fetch('/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, text })
-      });
-
-      if (res.ok) {
-        document.getElementById('mensagem').value = '';
-        await carregarMensagens();
-        exibirConversa(to);
-      } else {
-        alert('Erro ao enviar mensagem.');
-      }
+    // Salva no histórico
+    const timestamp = new Date().toISOString();
+    if (!mensagens[to]) {
+      mensagens[to] = [];
     }
+    mensagens[to].push({
+      from: 'você',
+      msg: text,
+      timestamp
+    });
 
-    window.onload = carregarMensagens;
-  </script>
-</body>
-</html>
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('Erro ao enviar mensagem:', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data || error.message });
+  }
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log('Servidor rodando na porta', PORT);
+});
