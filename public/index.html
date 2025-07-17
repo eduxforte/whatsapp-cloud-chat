@@ -80,7 +80,15 @@
       }
     }
 
-    window.onload = carregarMensagens;
+    window.onload = () => {
+  carregarMensagens();
+  setInterval(() => {
+    const numeroAtual = document.getElementById('destinatario').value.trim();
+    carregarMensagens().then(() => {
+      if (numeroAtual) exibirConversa(numeroAtual);
+    });
+  }, 1000); // atualiza a cada 1 segundos
+};
   </script>
 </body>
 </html>
