@@ -21,7 +21,7 @@ app.post('/webhook', async (req, res) => {
         `https://app.chatwoot.com/api/v1/accounts/${process.env.ACCOUNT_ID}/conversations`,
         {
           source_id: numero,
-          inbox_id: Number(process.env.CHATWOOT_INBOX_ID),
+          inbox_id: {process.env.CHATWOOT_INBOX_ID},
           contact: {
             name: `Cliente ${numero}`
           },
