@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Painel WhatsApp Cloud</title>
+  <title>WEB PROVEDORA DE CRÉDITO</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-4">
-  <h1 class="text-2xl font-bold mb-4">Painel WhatsApp Cloud</h1>
+  <h1 class="text-2xl font-bold mb-4">WEB PROVEDORA DE CRÉDITO</h1>
 
   <div class="flex border rounded-lg overflow-hidden shadow-lg h-[600px]">
     <!-- Coluna de Contatos -->
@@ -55,7 +55,8 @@
 
         const temMensagens = data[numero] || [];
         const ultimaMensagem = temMensagens[temMensagens.length - 1];
-        const naoLidas = ultimaMensagem && ultimaMensagem.from === numero && numero !== document.getElementById('destinatario').value;
+        const contatoSelecionado = document.getElementById('destinatario').value;
+        const naoLidas = ultimaMensagem && ultimaMensagem.from === numero && numero !== contatoSelecionado;
 
         if (naoLidas) {
           const bolinha = document.createElement('span');
@@ -86,27 +87,33 @@
         conversaDiv.appendChild(msg);
       });
 
-      // Após abrir, marcar como lido removendo a bolinha
-      carregarMensagens(mensagensFake);
+      carregarMensagens(mensagensFake); // Remove notificação
     }
 
     function enviarMensagem() {
-      const numero = document.getElementById('destinatario').value;
-      const texto = document.getElementById('mensagem').value;
+      const numero = document.getElementById('destinatario').value.trim();
+      const texto = document.getElementById('mensagem').value.trim();
 
-      if (!numero || !texto) return alert("Preencha o número e a mensagem.");
+      if (!numero || !texto) {
+        alert("Preencha o número e a mensagem.");
+        return;
+      }
 
-      // Simula salvar a mensagem
       if (!mensagensFake[numero]) mensagensFake[numero] = [];
-      mensagensFake[numero].push({ from: "atendente", text: texto });
 
+      mensagensFake[numero].push({ from: "atendente", text: texto });
       document.getElementById('mensagem').value = '';
 
-      // Atualiza a conversa automaticamente após envio
-      exibirConversa(numero);
+      // (Simulação) Resposta automática do cliente após 1s
+      setTimeout(() => {
+        mensagensFake[numero].push({ from: numero, text: "Recebido! Obrigado." });
+        carregarMensagens(mensagensFake);
+      }, 1000);
+
+      exibirConversa(numero); // Atualiza conversa
     }
 
-    // Simula carregamento inicial
+    // Carregar ao iniciar
     carregarMensagens(mensagensFake);
   </script>
 </body>
