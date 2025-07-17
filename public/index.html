@@ -1,192 +1,115 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <title>Painel WhatsApp</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: Arial, sans-serif; }
-    .container { display: flex; height: 100vh; }
-
-    /* Lateral esquerda */
-    .sidebar {
-      width: 30%;
-      background-color: #f0f0f0;
-      border-right: 1px solid #ccc;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .search-box {
-      padding: 10px;
-      border-bottom: 1px solid #ccc;
-    }
-
-    .search-box input {
-      width: 100%;
-      padding: 8px;
-      font-size: 1rem;
-    }
-
-    .contact-list {
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    .contact {
-      display: flex;
-      align-items: center;
-      padding: 10px;
-      border-bottom: 1px solid #ddd;
-      cursor: pointer;
-    }
-
-    .contact:hover {
-      background-color: #e0e0e0;
-    }
-
-    .contact img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      margin-right: 10px;
-    }
-
-    .contact-info {
-      flex: 1;
-    }
-
-    .contact-info .name {
-      font-weight: bold;
-    }
-
-    .contact-info .last-message {
-      font-size: 0.9rem;
-      color: #666;
-    }
-
-    /* Área de conversa */
-    .chat-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chat-header {
-      padding: 10px;
-      border-bottom: 1px solid #ccc;
-      background-color: #f7f7f7;
-      display: flex;
-      align-items: center;
-    }
-
-    .chat-header img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      margin-right: 10px;
-    }
-
-    .chat-messages {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      background-color: #fff;
-    }
-
-    .message {
-      margin: 5px 0;
-    }
-
-    .message.you {
-      text-align: right;
-    }
-
-    .chat-input {
-      display: flex;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-      background-color: #f7f7f7;
-    }
-
-    .chat-input input {
-      flex: 1;
-      padding: 8px;
-      font-size: 1rem;
-    }
-
-    .chat-input button {
-      padding: 8px 16px;
-      margin-left: 8px;
-      font-size: 1rem;
-    }
-  </style>
-</head>
-<body>
-<div class="container">
-  <div class="sidebar">
-    <div class="search-box">
-      <input type="text" placeholder="Pesquisar...">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Painel WhatsApp Cloud</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 h-screen flex">
+    <!-- Coluna Lateral -->
+    <div id="contatos" class="w-1/3 bg-white p-4 overflow-y-auto border-r border-gray-300">
+      <h2 class="text-xl font-bold mb-4">Conversas</h2>
+      <!-- Botões de contatos serão inseridos aqui pelo JavaScript -->
     </div>
-    <div class="contact-list" id="contact-list">
-      <!-- Contatos serão adicionados aqui -->
-    </div>
-  </div>
 
-  <div class="chat-area">
-    <div class="chat-header" id="chat-header">
-      <img src="https://via.placeholder.com/40" alt="foto">
-      <strong>Nome do contato</strong>
-    </div>
-    <div class="chat-messages" id="chat-messages">
-      <!-- Mensagens aparecerão aqui -->
-    </div>
-    <div class="chat-input">
-      <input type="text" id="input-msg" placeholder="Digite sua mensagem...">
-      <button onclick="enviarMensagem()">Enviar</button>
-    </div>
-  </div>
-</div>
-
-<script>
-  const contatos = [
-    { numero: "+55 48 8843-0301", foto: "https://i.pravatar.cc/40?u=1", ultima: "Currículo enviado" },
-    { numero: "+55 69 9366-8315", foto: "https://i.pravatar.cc/40?u=2", ultima: "Ligação perdida" },
-    { numero: "+55 34 9156-2611", foto: "https://i.pravatar.cc/40?u=3", ultima: "me informa seu CPF" },
-  ];
-
-  const contactList = document.getElementById("contact-list");
-  const chatHeader = document.getElementById("chat-header");
-  const chatMessages = document.getElementById("chat-messages");
-
-  contatos.forEach(c => {
-    const div = document.createElement("div");
-    div.className = "contact";
-    div.innerHTML = `
-      <img src="${c.foto}" alt="foto">
-      <div class="contact-info">
-        <div class="name">${c.numero}</div>
-        <div class="last-message">${c.ultima}</div>
+    <!-- Coluna Principal -->
+    <div class="flex-1 flex flex-col">
+      <div id="conversa" class="flex-1 p-4 overflow-y-auto bg-gray-50">
+        <p class="text-gray-500">Selecione um contato para ver a conversa</p>
       </div>
-    `;
-    div.onclick = () => abrirConversa(c);
-    contactList.appendChild(div);
-  });
 
-  function abrirConversa(contato) {
-    chatHeader.innerHTML = `<img src="${contato.foto}" alt="foto"><strong>${contato.numero}</strong>`;
-    chatMessages.innerHTML = "";
-    chatMessages.innerHTML += `<div class='message'>Cliente: ${contato.ultima}</div>`;
-  }
+      <div class="flex p-4 border-t border-gray-300 gap-2 bg-white">
+        <input
+          type="text"
+          id="destinatario"
+          class="flex-1 px-4 py-2 border border-gray-300 rounded"
+          placeholder="Número do cliente"
+        />
+        <input
+          type="text"
+          id="mensagem"
+          class="flex-[2] px-4 py-2 border border-gray-300 rounded"
+          placeholder="Digite sua mensagem"
+        />
+        <button
+          onclick="enviarMensagem()"
+          class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Enviar
+        </button>
+      </div>
+    </div>
 
-  function enviarMensagem() {
-    const input = document.getElementById("input-msg");
-    const msg = input.value.trim();
-    if (!msg) return;
-    chatMessages.innerHTML += `<div class='message you'>Você: ${msg}</div>`;
-    input.value = "";
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-</script>
-</body>
+    <script>
+      let mensagensGlobais = {};
+
+      async function carregarMensagens() {
+        const res = await fetch('/messages');
+        const data = await res.json();
+        mensagensGlobais = data;
+
+        const contatosDiv = document.getElementById('contatos');
+        contatosDiv.innerHTML = '<h2 class="text-xl font-bold mb-4">Conversas</h2>';
+
+        Object.keys(data).forEach(numero => {
+          const btn = document.createElement('button');
+          btn.textContent = numero;
+          btn.className =
+            'w-full text-left p-2 hover:bg-gray-200 rounded text-sm border-b border-gray-100';
+          btn.onclick = () => exibirConversa(numero);
+          contatosDiv.appendChild(btn);
+        });
+      }
+
+      function exibirConversa(numero) {
+        const divConversa = document.getElementById('conversa');
+        divConversa.innerHTML = `<h3 class="font-bold mb-2">Conversa com ${numero}</h3>`;
+
+        const mensagens = mensagensGlobais[numero] || [];
+        mensagens.forEach(msg => {
+          const hora = new Date(msg.timestamp).toLocaleTimeString();
+          const autor = msg.from === numero ? 'Cliente' : 'Você';
+          const p = document.createElement('p');
+          p.innerHTML = `<span class="text-gray-500 text-xs">[${hora}]</span> <strong>${autor}:</strong> ${msg.msg}`;
+          divConversa.appendChild(p);
+        });
+
+        document.getElementById('destinatario').value = numero;
+      }
+
+      async function enviarMensagem() {
+        const to = document.getElementById('destinatario').value.trim();
+        const text = document.getElementById('mensagem').value.trim();
+
+        if (!to || !text) {
+          alert('Escolha um contato e digite a mensagem!');
+          return;
+        }
+
+        const res = await fetch('/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, text })
+        });
+
+        if (res.ok) {
+          document.getElementById('mensagem').value = '';
+          await carregarMensagens();
+          exibirConversa(to);
+        } else {
+          alert('Erro ao enviar mensagem.');
+        }
+      }
+
+      window.onload = () => {
+        carregarMensagens();
+        setInterval(() => {
+          const atual = document.getElementById('destinatario').value.trim();
+          carregarMensagens().then(() => {
+            if (atual) exibirConversa(atual);
+          });
+        }, 2000);
+      };
+    </script>
+  </body>
 </html>
