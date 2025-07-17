@@ -20,22 +20,19 @@ app.post('/webhook', async (req, res) => {
     try {
       // Envia a mensagem para o Chatwoot
       await axios.post(
-        `https://app.chatwoot.com/api/v1/accounts/${process.env.CHATWOOT_ACCOUNT_ID}/inboxes/${process.env.CHATWOOT_INBOX_ID}/messages`,
-        {
-          content: texto,
-          message_type: 'incoming',
-          sender: {
-            name: numero,
-            identifier: numero
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'api_access_token': process.env.CHATWOOT_API_TOKEN
-          }
-        }
-      );
+  `https://app.chatwoot.com/public/api/v1/inboxes/${process.env.CHATWOOT_INBOX_ID}/contacts/${numero}/conversations`,
+  {
+    source_id: numero,
+    content: texto
+  },
+  {
+    headers: {
+      'Content-Type': 'application/json',
+      'api_access_token': process.env.CHATWOOT_API_TOKEN
+    }
+  }
+);
+
 
       console.log(`Mensagem de ${numero} enviada para o Chatwoot.`);
     } catch (err) {
