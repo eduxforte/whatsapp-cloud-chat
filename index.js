@@ -18,23 +18,39 @@ app.post('/webhook', async (req, res) => {
 
   if (numero && texto) {
     try {
-      // Envia a mensagem para o Chatwoot
+      // Cria conversa no Chatwoot se necessário
+      const conversa = await axios.post(
+        `https://app.chatwoot.com/api/v1/accounts/${process.env.CHATWOOT_ACCOUNT_ID}/conversations`,
+        {
+          source_id: numero,
+          inbox_id: process.env.CHATWOOT_INBOX_ID,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'api_access_token': process.env.CHATWOOT_API_TOKEN
+          }
+        }
+      );
+
+      const conversation_id = conversa.data.id;
+
+      // Envia mensagem para a conversa criada
       await axios.post(
-  `https://app.chatwoot.com/public/api/v1/inboxes/${process.env.CHATWOOT_INBOX_ID}/contacts/${numero}/conversations`,
-  {
-    source_id: numero,
-    content: texto
-  },
-  {
-    headers: {
-      'Content-Type': 'application/json',
-      'api_access_token': process.env.CHATWOOT_API_TOKEN
-    }
-  }
-);
+        `https://app.chatwoot.com/api/v1/accounts/${process.env.CHATWOOT_ACCOUNT_ID}/conversations/${conversation_id}/messages`,
+        {
+          content: texto,
+          message_type: 'incoming' // indica que é recebida do cliente
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'api_access_token': process.env.CHATWOOT_API_TOKEN
+          }
+        }
+      );
 
-
-      console.log(`Mensagem de ${numero} enviada para o Chatwoot.`);
+      console.log(`✅ Mensagem de ${numero} enviada para o Chatwoot.`);
     } catch (err) {
       console.error('❌ Erro ao enviar para Chatwoot:', err.response?.data || err.message);
     }
@@ -42,6 +58,7 @@ app.post('/webhook', async (req, res) => {
 
   res.sendStatus(200);
 });
+
 // Endpoint GET para verificação do webhook (obrigatório pelo Meta)
 app.get('/webhook', (req, res) => {
   const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
@@ -59,5 +76,5 @@ app.get('/webhook', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
