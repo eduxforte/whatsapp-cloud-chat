@@ -2,9 +2,102 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Teste input</title>
+  <title>Painel WhatsApp Cloud</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #contatos button {
+      display: block;
+      margin: 5px 0;
+      padding: 8px;
+      width: 200px;
+      cursor: pointer;
+    }
+    #conversa {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 200px;
+      max-width: 600px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+    input, button {
+      padding: 8px;
+      font-size: 14px;
+      margin-right: 5px;
+    }
+    input#destinatario {
+      width: 200px;
+    }
+    input#mensagem {
+      width: 300px;
+    }
+  </style>
+  <script>
+    async function carregarMensagens() {
+      const res = await fetch('/messages');
+      const data = await res.json();
+      const contatosDiv = document.getElementById('contatos');
+      contatosDiv.innerHTML = '';
+
+      Object.keys(data).forEach(numero => {
+        const btn = document.createElement('button');
+        btn.innerText = numero;
+        btn.onclick = () => exibirConversa(numero, data[numero]);
+        contatosDiv.appendChild(btn);
+      });
+    }
+
+    function exibirConversa(numero, mensagens) {
+      const div = document.getElementById('conversa');
+      div.innerHTML = `<h3>Conversando com ${numero}</h3>`;
+      mensagens.forEach(m => {
+        const p = document.createElement('p');
+        p.innerText = `${m.from}: ${m.msg}`;
+        div.appendChild(p);
+      });
+      document.getElementById('destinatario').value = numero;
+      document.getElementById('destinatario').disabled = false; // garante que está habilitado
+    }
+
+    async function enviarMensagem() {
+      const toInput = document.getElementById('destinatario');
+      const textInput = document.getElementById('mensagem');
+      const to = toInput.value.trim();
+      const text = textInput.value.trim();
+
+      if (!to) {
+        alert('Digite o número do cliente.');
+        toInput.focus();
+        return;
+      }
+      if (!text) {
+        alert('Digite uma mensagem.');
+        textInput.focus();
+        return;
+      }
+
+      await fetch('/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, text })
+      });
+
+      textInput.value = '';
+      await carregarMensagens();
+    }
+
+    window.onload = carregarMensagens;
+  </script>
 </head>
 <body>
+  <h1>Painel WhatsApp Cloud</h1>
+  <div id="contatos" style="margin-bottom: 20px;">Selecione um contato para ver a conversa</div>
+  <div id="conversa"></div>
   <input type="text" id="destinatario" placeholder="Número do cliente" />
+  <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
+  <button onclick="enviarMensagem()">Enviar</button>
 </body>
 </html>
