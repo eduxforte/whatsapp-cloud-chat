@@ -26,9 +26,9 @@ app.post('/webhook', (req, res) => {
     if (msg.text?.body) {
       text = msg.text.body;
     } else if (msg.button?.payload) {
-      text = msg.button.payload; // ideal se você usa payload nos botões
+      text = msg.button.payload;
     } else if (msg.button?.text) {
-      text = msg.button.text; // fallback caso payload não esteja configurado
+      text = msg.button.text;
     }
 
     if (!text) {
@@ -36,8 +36,9 @@ app.post('/webhook', (req, res) => {
       return res.sendStatus(200);
     }
 
-    const timestamp = new Date().toISOString();
+    const timestamp = new Date().toISOString(); // 🕒 data/hora atual
 
+    // Armazena em memória
     if (!mensagens[from]) {
       mensagens[from] = [];
     }
@@ -48,12 +49,14 @@ app.post('/webhook', (req, res) => {
       timestamp
     });
 
-    console.log(`📩 Mensagem recebida de ${from}: ${text}`);
+    console.log(`📩 Mensagem recebida de ${from}: ${text} às ${timestamp}`);
 
+    // Envia para Make com data/hora
     axios.post('https://hook.us2.make.com/fsk7p1m16g46tzt7mpi8kbmlhbucy93y', {
       numero: from.startsWith('+') ? from : `+${from}`,
       mensagem: text,
-      origem: 'cliente'
+      origem: 'cliente',
+      data_hora_recebida: timestamp
     })
     .then(() => console.log('✅ Enviado ao Make com sucesso'))
     .catch((err) => console.error('❌ Erro ao enviar para Make:', err.response?.data || err.message));
