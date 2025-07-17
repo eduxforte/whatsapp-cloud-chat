@@ -120,28 +120,23 @@ app.get('/webhook', (req, res) => {
 app.post('/chatwoot/webhook', async (req, res) => {
   console.log('📦 Corpo recebido do Chatwoot:', JSON.stringify(req.body, null, 2));
 
-  const { content, contact, conversation } = req.body;
-
-  const mensagem = content?.text || content?.message || '';
-  let numero = contact?.identifier || contact?.phone_number || contact?.additional_attributes?.phone_number || '';
-
-  // Remove espaços, "+" e outros caracteres não numéricos
-  numero = numero.replace(/\D/g, '');
-
-  console.log('📩 Mensagem recebida do Chatwoot:', mensagem);
-  console.log('📱 Enviando para número:', numero);
-
-  if (!numero || !mensagem) {
-    console.warn('⚠️ Mensagem ou número ausente:', { mensagem, numero });
-    return res.status(400).send('Dados incompletos.');
-  }
-
   try {
+    const mensagem = req.body.content || req.body.processed_message_content || '';
+    const numero = req.body.meta?.sender?.phone_number || '';
+
+    console.log('📩 Mensagem recebida do Chatwoot:', mensagem);
+    console.log('📱 Enviando para número:', numero);
+
+    if (!mensagem || !numero) {
+      console.warn('⚠️ Mensagem ou número ausente:', { mensagem, numero });
+      return res.status(400).send('Dados incompletos.');
+    }
+
     await axios.post(
       'https://graph.facebook.com/v19.0/713151888548596/messages',
       {
         messaging_product: "whatsapp",
-        to: numero,
+        to: numero.replace(/\D/g, ''), // remove "+" e outros caracteres
         type: "text",
         text: { body: mensagem }
       },
@@ -153,14 +148,13 @@ app.post('/chatwoot/webhook', async (req, res) => {
       }
     );
 
-    console.log('✅ Mensagem enviada via WhatsApp');
+    console.log('✅ Mensagem enviada com sucesso via WhatsApp!');
     res.sendStatus(200);
-  } catch (error) {
-    console.error('❌ Erro ao responder no WhatsApp:', error.response?.data || error.message);
-    res.status(500).send('Erro ao enviar mensagem');
+  } catch (err) {
+    console.error('❌ Erro ao enviar mensagem para o WhatsApp:', err.response?.data || err.message);
+    res.status(500).send('Erro ao processar mensagem.');
   }
 });
-
 
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
