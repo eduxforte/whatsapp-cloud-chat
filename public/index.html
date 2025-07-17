@@ -7,21 +7,39 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
+      max-width: 800px;
+    }
+    #contatos {
+      border: 1px solid #ccc;
+      padding: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 15px;
     }
     #contatos button {
       display: block;
-      margin: 5px 0;
+      margin-bottom: 5px;
+      width: 100%;
+      text-align: left;
       padding: 8px;
-      width: 200px;
       cursor: pointer;
+      border: none;
+      background-color: #eee;
+      border-radius: 4px;
+    }
+    #contatos button:hover {
+      background-color: #ddd;
     }
     #conversa {
       border: 1px solid #ccc;
       padding: 10px;
-      min-height: 200px;
-      max-width: 600px;
+      min-height: 300px;
+      max-height: 300px;
       overflow-y: auto;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
+      white-space: pre-wrap;
+      background-color: #f9f9f9;
+      border-radius: 4px;
     }
     input, button {
       padding: 8px;
@@ -29,75 +47,106 @@
       margin-right: 5px;
     }
     input#destinatario {
-      width: 200px;
+      width: 180px;
     }
     input#mensagem {
-      width: 300px;
+      width: 400px;
     }
   </style>
-  <script>
-    async function carregarMensagens() {
-      const res = await fetch('/messages');
-      const data = await res.json();
-      const contatosDiv = document.getElementById('contatos');
-      contatosDiv.innerHTML = '';
+</head>
+<body>
+  <h1>Painel WhatsApp Cloud</h1>
 
-      Object.keys(data).forEach(numero => {
-        const btn = document.createElement('button');
-        btn.innerText = numero;
-        btn.onclick = () => exibirConversa(numero, data[numero]);
-        contatosDiv.appendChild(btn);
-      });
+  <div id="contatos">Carregando contatos...</div>
+  <div id="conversa">Selecione um contato para ver a conversa</div>
+
+  <input type="text" id="destinatario" placeholder="Número do cliente" />
+  <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
+  <button onclick="enviarMensagem()">Enviar</button>
+
+  <script>
+    let mensagensGlobais = {};
+
+    async function carregarMensagens() {
+      try {
+        const res = await fetch('/messages');
+        mensagensGlobais = await res.json();
+
+        const contatosDiv = document.getElementById('contatos');
+        contatosDiv.innerHTML = '';
+
+        const numeros = Object.keys(mensagensGlobais);
+        if (numeros.length === 0) {
+          contatosDiv.innerText = 'Nenhum contato com mensagens.';
+          return;
+        }
+
+        numeros.forEach(numero => {
+          const btn = document.createElement('button');
+          btn.innerText = numero;
+          btn.onclick = () => exibirConversa(numero);
+          contatosDiv.appendChild(btn);
+        });
+      } catch (error) {
+        console.error('Erro ao carregar mensagens:', error);
+        document.getElementById('contatos').innerText = 'Erro ao carregar contatos.';
+      }
     }
 
-    function exibirConversa(numero, mensagens) {
+    function exibirConversa(numero) {
       const div = document.getElementById('conversa');
-      div.innerHTML = `<h3>Conversando com ${numero}</h3>`;
-      mensagens.forEach(m => {
-        const p = document.createElement('p');
-        p.innerText = `${m.from}: ${m.msg}`;
-        div.appendChild(p);
-      });
+      div.innerHTML = `<h3>Conversa com ${numero}</h3>`;
+
+      const mensagens = mensagensGlobais[numero] || [];
+      if (mensagens.length === 0) {
+        div.innerHTML += '<p><i>Sem mensagens.</i></p>';
+      } else {
+        mensagens.forEach(m => {
+          const hora = new Date(m.timestamp).toLocaleString();
+          div.innerHTML += `<p><b>${m.from}:</b> ${m.msg} <small style="color:#666">(${hora})</small></p>`;
+        });
+      }
+
       document.getElementById('destinatario').value = numero;
-      document.getElementById('destinatario').disabled = false; // garante que está habilitado
+      document.getElementById('destinatario').disabled = false;
     }
 
     async function enviarMensagem() {
-      const toInput = document.getElementById('destinatario');
-      const textInput = document.getElementById('mensagem');
-      const to = toInput.value.trim();
-      const text = textInput.value.trim();
+      const to = document.getElementById('destinatario').value.trim();
+      const text = document.getElementById('mensagem').value.trim();
 
       if (!to) {
         alert('Digite o número do cliente.');
-        toInput.focus();
         return;
       }
       if (!text) {
-        alert('Digite uma mensagem.');
-        textInput.focus();
+        alert('Digite a mensagem.');
         return;
       }
 
-      await fetch('/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, text })
-      });
+      try {
+        const res = await fetch('/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, text })
+        });
 
-      textInput.value = '';
-      await carregarMensagens();
+        if (!res.ok) {
+          const error = await res.json();
+          alert('Erro ao enviar mensagem: ' + (error.error?.message || JSON.stringify(error)));
+          return;
+        }
+
+        document.getElementById('mensagem').value = '';
+        await carregarMensagens();
+        exibirConversa(to);
+      } catch (err) {
+        alert('Erro inesperado ao enviar mensagem.');
+        console.error(err);
+      }
     }
 
     window.onload = carregarMensagens;
   </script>
-</head>
-<body>
-  <h1>Painel WhatsApp Cloud</h1>
-  <div id="contatos" style="margin-bottom: 20px;">Selecione um contato para ver a conversa</div>
-  <div id="conversa"></div>
-  <input type="text" id="destinatario" placeholder="Número do cliente" />
-  <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
-  <button onclick="enviarMensagem()">Enviar</button>
 </body>
 </html>
