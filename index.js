@@ -24,7 +24,7 @@ app.get('/messages', (req, res) => {
   res.json(mensagens);
 });
 
-// Envia mensagem para número específico
+// Envia mensagem para número específico (painel manual)
 app.post('/send', async (req, res) => {
   const { to, text } = req.body;
 
@@ -57,7 +57,7 @@ app.post('/send', async (req, res) => {
 });
 
 // Recebe mensagens do WhatsApp (webhook)
-app.post('/webhook', (req, res) => {
+app.post('/webhook', async (req, res) => {
   const entry = req.body.entry?.[0];
   const changes = entry?.changes?.[0];
   const message = changes?.value?.messages?.[0];
@@ -70,6 +70,30 @@ app.post('/webhook', (req, res) => {
     if (texto) {
       salvarMensagem(numero, 'Cliente', texto, Number(message.timestamp) * 1000);
       console.log(`Mensagem recebida de ${numero}: ${texto}`);
+
+      // Envia para o Chatwoot
+      try {
+        await axios.post(
+          `https://app.chatwoot.com/api/v1/inboxes/${process.env.CHATWOOT_INBOX_ID}/messages`,
+          {
+            content: texto,
+            inbox_id: Number(process.env.CHATWOOT_INBOX_ID),
+            message_type: 'incoming',
+            sender: {
+              name: numero,
+              identifier: numero
+            }
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'api_access_token': process.env.CHATWOOT_API_TOKEN
+            }
+          }
+        );
+      } catch (err) {
+        console.error('Erro ao enviar para Chatwoot:', err.response?.data || err.message);
+      }
     }
   }
 
@@ -89,6 +113,47 @@ app.get('/webhook', (req, res) => {
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
+  }
+});
+
+// ✅ Nova rota: Recebe mensagens do Chatwoot e envia pelo WhatsApp
+app.post('/chatwoot/webhook', async (req, res) => {
+  const payload = req.body;
+
+  const message = payload?.content;
+  const numero = payload?.inbox?.custom_attributes?.phone;
+
+  if (!message || !numero) {
+    console.log('⚠️ Mensagem ou número ausente:', { message, numero });
+    return res.status(400).send('Faltando número ou conteúdo');
+  }
+
+  try {
+    const token = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to: numero,
+        type: 'text',
+        text: { body: message }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log('✅ Mensagem enviada via WhatsApp pelo Chatwoot:', response.data);
+    salvarMensagem(numero, 'Você (Chatwoot)', message);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('Erro ao enviar mensagem via WhatsApp:', err.response?.data || err.message);
+    res.status(500).json({ error: err.response?.data || err.message });
   }
 });
 
