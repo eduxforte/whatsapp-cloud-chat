@@ -145,8 +145,39 @@
         console.error(err);
       }
     }
+    
+    let numeroAtual = null;
 
-    window.onload = carregarMensagens;
+window.onload = () => {
+  carregarMensagens();
+  setInterval(() => {
+    carregarMensagens().then(() => {
+      if (numeroAtual) {
+        exibirConversa(numeroAtual);
+      }
+    });
+  }, 1000); // atualiza a cada 1 segundos
+};
+
+function exibirConversa(numero) {
+  numeroAtual = numero;
+  const div = document.getElementById('conversa');
+  div.innerHTML = `<h3>Conversa com ${numero}</h3>`;
+
+  const mensagens = mensagensGlobais[numero] || [];
+  if (mensagens.length === 0) {
+    div.innerHTML += '<p><i>Sem mensagens.</i></p>';
+  } else {
+    mensagens.forEach(m => {
+      const hora = new Date(m.timestamp).toLocaleString();
+      div.innerHTML += `<p><b>${m.from}:</b> ${m.msg} <small style="color:#666">(${hora})</small></p>`;
+    });
+  }
+
+  document.getElementById('destinatario').value = numero;
+  document.getElementById('destinatario').disabled = false;
+}
+
   </script>
 </body>
 </html>
