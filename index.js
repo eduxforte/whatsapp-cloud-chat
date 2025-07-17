@@ -1,53 +1,87 @@
-// 📌 Função para criar contato
-async function criarContato(numero) {
-  const contato = await axios.post(
-    `https://app.chatwoot.com/api/v1/accounts/${process.env.CHATWOOT_ACCOUNT_ID}/contacts`,
-    {
-      name: "Cliente WhatsApp",
-      phone_number: numero,
-      inbox_id: parseInt(process.env.CHATWOOT_INBOX_ID),
-      identifier: numero,
-      custom_attributes: { via: "whatsapp" }
-    },
-    {
-      headers: {
-        "Content-Type": "application/json",
-        api_access_token: process.env.CHATWOOT_API_TOKEN
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Painel WhatsApp Cloud</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #contatos button { display: block; margin-bottom: 5px; width: 100%; }
+    #conversa { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
+    #input-area { display: flex; gap: 10px; }
+    #destinatario, #mensagem { flex: 1; padding: 8px; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Painel WhatsApp Cloud</h1>
+  <div id="contatos"></div>
+  <div id="conversa">Selecione um contato para ver a conversa</div>
+
+  <div id="input-area">
+    <input type="text" id="destinatario" placeholder="Número do cliente" readonly />
+    <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
+    <button onclick="enviarMensagem()">Enviar</button>
+  </div>
+
+  <script>
+    let mensagensGlobais = {};
+
+    async function carregarMensagens() {
+      const res = await fetch('/messages');
+      const data = await res.json();
+      mensagensGlobais = data;
+
+      const contatosDiv = document.getElementById('contatos');
+      contatosDiv.innerHTML = '';
+
+      Object.keys(data).forEach(numero => {
+        const btn = document.createElement('button');
+        btn.textContent = numero;
+        btn.onclick = () => exibirConversa(numero);
+        contatosDiv.appendChild(btn);
+      });
+    }
+
+    function exibirConversa(numero) {
+      const divConversa = document.getElementById('conversa');
+      divConversa.innerHTML = `<h3>Conversa com ${numero}</h3>`;
+
+      const mensagens = mensagensGlobais[numero] || [];
+      mensagens.forEach(msg => {
+        const p = document.createElement('p');
+        const hora = new Date(msg.timestamp).toLocaleTimeString();
+        p.textContent = `[${hora}] ${msg.from === numero ? 'Cliente' : 'Você'}: ${msg.msg}`;
+        divConversa.appendChild(p);
+      });
+
+      document.getElementById('destinatario').value = numero;
+      document.getElementById('mensagem').focus();
+    }
+
+    async function enviarMensagem() {
+      const to = document.getElementById('destinatario').value;
+      const text = document.getElementById('mensagem').value.trim();
+
+      if (!to || !text) {
+        alert('Escolha um contato e digite a mensagem!');
+        return;
+      }
+
+      const res = await fetch('/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, text })
+      });
+
+      if (res.ok) {
+        document.getElementById('mensagem').value = '';
+        await carregarMensagens();
+        exibirConversa(to);
+      } else {
+        alert('Erro ao enviar mensagem.');
       }
     }
-  );
 
-  return contato.data.payload.id;
-}
-
-// 📌 Dentro do /webhook
-if (numero && texto) {
-  try {
-    const contatoId = await criarContato(numero);
-
-    await axios.post(
-      `https://app.chatwoot.com/api/v1/accounts/${process.env.ACCOUNT_ID}/conversations`,
-      {
-        source_id: numero,
-        inbox_id: parseInt(process.env.CHATWOOT_INBOX_ID),
-        contact_id: contatoId,
-        messages: [
-          {
-            content: texto,
-            message_type: "incoming"
-          }
-        ]
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          api_access_token: process.env.CHATWOOT_API_TOKEN
-        }
-      }
-    );
-
-    console.log(`✅ Mensagem de ${numero} enviada para Chatwoot.`);
-  } catch (err) {
-    console.error("❌ Erro ao enviar para Chatwoot:", err.response?.data || err.message);
-  }
-}
+    window.onload = carregarMensagens;
+  </script>
+</body>
+</html>
