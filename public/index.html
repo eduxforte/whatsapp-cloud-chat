@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Painel WhatsApp Cloud</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #contatos button { margin: 5px; padding: 10px; }
+    #conversa { border: 1px solid #ccc; padding: 10px; min-height: 200px; max-height: 400px; overflow-y: auto; }
+    input, button { margin-top: 10px; padding: 8px; font-size: 1rem; }
+    #destinatario, #mensagem { width: 300px; }
+  </style>
+</head>
+<body>
+  <h1>Painel WhatsApp Cloud</h1>
+
+  <div id="contatos"></div>
+  <div id="conversa"></div>
+
+  <input type="text" id="destinatario" placeholder="Número do cliente" />
+  <br/>
+  <input type="text" id="mensagem" placeholder="Digite sua mensagem" />
+  <br/>
+  <button onclick="enviarMensagem()">Enviar</button>
+
+  <script>
+    async function carregarMensagens() {
+      const res = await fetch('/messages');
+      const data = await res.json();
+      const contatosDiv = document.getElementById('contatos');
+      contatosDiv.innerHTML = '';
+
+      Object.keys(data).forEach(numero => {
+        const btn = document.createElement('button');
+        btn.innerText = numero;
+        btn.onclick = () => exibirConversa(numero, data[numero]);
+        contatosDiv.appendChild(btn);
+      });
+    }
+
+    function exibirConversa(numero, mensagens) {
+      const div = document.getElementById('conversa');
+      div.innerHTML = `<h3>Conversando com ${numero}</h3>`;
+      mensagens.forEach(m => {
+        const p = document.createElement('p');
+        p.innerText = `${m.from}: ${m.msg}`;
+        div.appendChild(p);
+      });
+      document.getElementById('destinatario').value = numero;
+    }
+
+    async function enviarMensagem() {
+      const to = document.getElementById('destinatario').value;
+      const text = document.getElementById('mensagem').value;
+      if(!to || !text) {
+        alert('Preencha destinatário e mensagem!');
+        return;
+      }
+      try {
+        await fetch('/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, text })
+        });
+        document.getElementById('mensagem').value = '';
+        carregarMensagens();
+      } catch(err) {
+        alert('Erro ao enviar mensagem');
+        console.error(err);
+      }
+    }
+
+    window.onload = carregarMensagens;
+  </script>
+</body>
+</html>
